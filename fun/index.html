@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <link data-require="bootstrap-css@*" data-semver="4.0.0-alpha.4" rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.4/css/bootstrap.min.css" />
+    <script data-require="jquery@*" data-semver="3.1.1" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script data-semver="2.0.0-beta.5" src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/2.0.0-beta.7/fabric.js"></script>
+    <link rel="stylesheet" href="view/style.css" />
+    <script src="view/view.js"></script>
+    <script src="fun.js"></script>
+  </head>
+
+  <body>
+    <h1>Demo</h1>
+    <div class="container-fluid">
+      <div id="actions" class="row form-horizontal"></div>
+      <div id="tools" class="row form-horizontal"></div>
+      <div id="draw" class="row form-horizontal"></div>
+      <div class="row form-horizontal">
+        <div id="controls" class="col-md-3 col-sm-3"></div>
+        <div id="funCanvasContainer" class="col-md-9 col-sm-9">
+          <canvas id="funCanvas"></canvas>
+          <h2></h2>
+          <div class="row">
+            <canvas id="preview"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+        fun.start();
+    </script>
+  </body>
+
+</html>

@@ -4,6 +4,14 @@
 
     /** @const FULL_SIZE {object} the size of the canvas */
     var FULL_SIZE = {width: 1600, height: 1200};
+    /** @const BRUSHES {object} the available brushes */
+    var BRUSHES = {
+        OFF: 'Off',
+        PENCIL: 'Pencil',
+        CIRCLE: 'Circle',
+        SPRAY: 'Spray',
+        PATTERN: 'Pattern'
+    };
 
     /**
      * @exports fun
@@ -72,6 +80,12 @@
             view.addButton(GET.TOOLS, 'Circle', this.createObject.bind(this, 'Circle', {
                 radius: '150'
             }));
+
+            //Free drawing row
+            view.addRadios(GET.DRAW, 'Draw', Object.values(BRUSHES), BRUSHES.OFF,
+                this.setFreeDrawing.bind(this), {
+                    'data-get': 'getFreeDrawing'
+                });
 
             //Controls in left column
             view.addRowInput(GET.CONTROLS, 'color', 'Fill color', 'fill', '#00ff00',
@@ -197,7 +211,9 @@
          * @returns {fabric.Object}
          */
         getActive: function () {
-            return this.canvas.getActiveObject();
+            return this.canvas.isDrawingMode
+                ? this.canvas.freeDrawingBrush
+                : this.canvas.getActiveObject();
         },
 
         /** Returns the active objects as an array.
@@ -205,7 +221,9 @@
          * @returns {[fabric.Object]} array of current active objects
          */
         getActiveObjects: function () {
-            return this.canvas.getActiveObjects();
+            return this.canvas.isDrawingMode
+                ? [this.canvas.freeDrawingBrush]
+                : this.canvas.getActiveObjects();
         },
 
         /** Removes the active objects from the canvas.
@@ -236,6 +254,8 @@
          * @param fob {fabric.Object} the the fabric object to add
          */
         addObjectToCanvas: function (fob) {
+            //Turn off free drawing mode if it is on
+            this.setFreeDrawing(BRUSHES.OFF);
             //Add the object to the canvas
             this.canvas.add(fob);
             //Center the object; use viewportCenter in case canvas is zoomed or clipped
@@ -279,6 +299,57 @@
                         return response;
                     }
                 }
+            }
+        },
+
+
+        /***** free drawing ***************************************************************/
+
+        /** Returns what brush is currently selected.
+         *
+         * @returns {string} one of the values in BRUSHES
+         */
+        getFreeDrawing: function (brush) {
+            if(this.canvas.isDrawingMode && this.canvas.freeDrawingBrush) {
+                return this.canvas.freeDrawingBrush.name === brush;
+            }
+            return BRUSHES.OFF === brush;
+        },
+
+        /** Toggles free drawing on and off and sets which brush.
+         * @param brush {string|Event} the name of the brush to use
+         */
+        setFreeDrawing: function (brush) {
+            brush = view.getEventValue(brush);
+            if (brush === BRUSHES.OFF) {
+                this.canvas.isDrawingMode = false;
+            } else {
+                this.canvas.discardActiveObject();
+                this.canvas.requestRenderAll();
+                this.brushes = this.brushes || {};
+
+                if (!this.brushes[brush]) {
+                    this.brushes[brush] = new fabric[brush + 'Brush'](this.canvas);
+                    //Create the _set function for the brush
+                    this.brushes[brush].set = function (property, value) {
+                        if (property === 'stroke') this.color = value;
+                        else if (property === 'strokeWidth') this.width = value;
+                        else this[property] = value;
+                    };
+                    //Create the get function for the brush
+                    this.brushes[brush].get = function (property) {
+                        if (property === 'stroke') return this.color;
+                        if (property === 'strokeWidth') return this.width;
+                        return this[property];
+                    };
+                    //Set the name so we know which one is selected
+                    this.brushes[brush].name = brush;
+                }
+                this.brushes[brush].color = view.getValueFor('stroke');
+                this.brushes[brush].width = view.getValueFor('strokeWidth');
+
+                this.canvas.freeDrawingBrush = this.brushes[brush];
+                this.canvas.isDrawingMode = true;
             }
         }
     };

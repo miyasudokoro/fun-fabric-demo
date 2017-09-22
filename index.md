@@ -8,3 +8,4 @@ Connect.Tech 2017
 2. Canvas sizing and zoom
 3. Basic objects and some inputs for manipulating them
 4. Free drawing
+5. Extending an object class: FText

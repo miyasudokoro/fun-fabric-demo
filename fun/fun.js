@@ -80,6 +80,9 @@
             view.addButton(GET.TOOLS, 'Circle', this.createObject.bind(this, 'Circle', {
                 radius: '150'
             }));
+            view.addButton(GET.TOOLS, 'Text', this.createObject.bind(this, 'FText', {
+                text: 'text'
+            }));
 
             //Free drawing row
             view.addRadios(GET.DRAW, 'Draw', Object.values(BRUSHES), BRUSHES.OFF,
@@ -96,10 +99,20 @@
                 });
             view.addRowInput(GET.CONTROLS, 'color', 'Line color', 'stroke', '#0000ff',
                 this.set.bind(this, 'stroke'));
-
             view.addRowInput(GET.CONTROLS, 'range', 'Opacity', 'opacity', 1.0,
                 this.set.bind(this, 'opacity'), {
                     min: 0.0, max: 1.0, step: 0.1
+                });
+                
+            view.addRowInput(GET.CONTROLS, 'select', 'Font', 'fontFamily', 'Arial',
+                this.set.bind(this, 'fontFamily'), {
+                    options: ['serif', 'sans-serif', 'cursive', 'monospace', 'Arial',
+                        'Arial Black', 'Courier New', 'Georgia', 'Impact', 'Lucida Console',
+                        'Tahoma', 'Times New Roman']
+                });
+            view.addRowInput(GET.CONTROLS, 'number', 'Font size', 'fontSize', 100,
+                this.set.bind(this, 'fontSize'), {
+                    min: 4, max: 400, step: 0.5
                 });
         },
 

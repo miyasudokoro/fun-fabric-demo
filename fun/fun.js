@@ -44,6 +44,9 @@
 
             //Make the static preview canvas
             this._initializePreview();
+
+            //Watermark
+            this._initializeWatermark();
         },
 
         /** Sets up this.canvas and starts listeners.
@@ -85,6 +88,9 @@
                 this.canvas.discardActiveObject();
                 this.canvas.renderAll();
             }.bind(this));
+            
+            view.addInlineInput(GET.ACTIONS, 'text', 'Watermark', 'watermark', '',
+                this.updateWatermark.bind(this));
             
             //Add objects row
             view.addInlineInput(GET.TOOLS, 'file', 'Image', 'image', '',
@@ -130,6 +136,7 @@
                 this.set.bind(this, 'fontSize'), {
                     min: 4, max: 400, step: 0.5
                 });
+                
             view.addText(GET.CONTROLS, 'Image filters:');
 
             for (var type in filterManager.filters) {
@@ -164,8 +171,13 @@
             this.canvas.on('selection:created', view.updateInputs.bind(view, this));
             //Updates the inputs after selecting object(s)
             this.canvas.on('object:selected', view.updateInputs.bind(view, this));
-            //Renders the canvas after a change
-            this.canvas.on('object:changed', this.canvas.renderAll.bind(this.canvas));
+            //Watermark update
+            this.canvas.on('object:modified', this.objectChanged.bind(this));
+            this.canvas.on('object:added', this.objectChanged.bind(this));
+            this.canvas.on('object:removed', this.objectChanged.bind(this));
+            this.canvas.on('object:changed', this.objectChanged.bind(this));
+            //Watermark update when async image loads
+            this.canvas.on('image:load', this.updateWatermarkPosition.bind(this));
         },
 
         /** Sets event listeners on the document.
@@ -361,11 +373,18 @@
                 //Get the active object(s)
                 var fobs = this.getActiveObjects();
                 if (fobs && fobs.length > 0) {
+                    var changed = false;
                     for (var i = fobs.length; i--; ) {
+                        var previous = fobs[i].get(property);
                         fobs[i].set(property, value);
+                        if(previous !== fobs[i].get(property)) {
+                          changed = true;
+                        }
                     }
                     //Render after setting the property
-                    this.canvas.requestRenderAll();
+                    if(changed) {
+                      this.updateWatermarkPosition();
+                    }
                 }
             }
         },
@@ -632,8 +651,16 @@
         },
 
         /** Simple edge detection based on transparency.
+         * @param toggleControls {boolean} true if _toggleControls should be called
          */
-        _detectEdges: function () {
+        _detectEdges: function (toggleControls) {
+            //Hide selection border and controls so we can detect actual content
+            toggleControls && this._toggleControls(false);
+            //Hide the watermark so we can detect actual content
+            this.canvas.overlayImage.visible = false;
+            //Re-render
+            this.canvas.renderAll();
+            
             var context = this.canvas.getContext(),
                 imageData = context.getImageData(0, 0, this.canvas.width, this.canvas.height),
                 //get the RGBA values of each pixel, starting at top left and going row after row: [r,g,b,a,r,g,b,a...]
@@ -665,6 +692,13 @@
                     }
                 }
             }
+
+            //Show the selection border and controls
+            toggleControls && this._toggleControls(true);
+            //Show the watermark
+            this.canvas.overlayImage.visible = true;
+            //Re-render
+            this.canvas.renderAll();
 
             //Return the detected content area
             return {
@@ -771,6 +805,44 @@
                 this.preview.add(image);
             }
             return image;
+        },
+        
+        
+        /***** watermark **********************************************************/
+
+        /** Creates the watermark overlay image.
+         * @private.
+         */
+        _initializeWatermark: function () {
+            //make watermark instance
+            this._watermarkImage = new fabric.FWatermark();
+            //put watermark instance as the overlay on the canvas
+            this.canvas.setOverlayImage(this._watermarkImage);
+        },
+        
+        /** Updates the watermark text.
+         * @param text {string|Event} the text or event of text change
+         */
+        updateWatermark: function (text) {
+            //Find text value
+            text = view.getEventValue(text);
+            //Update the watermark image
+            this._watermarkImage.setText(text, this.canvas);
+        },
+        
+        /** Updates the watermark position.
+         */
+        updateWatermarkPosition: function () {
+          this._watermarkImage.setPosition(this._detectEdges(true), this.canvas);
+        },
+
+        /** Canvas change handler; debounce used due to possible multiple mouse actions
+         * @param event {object} canvas event object
+         */
+        objectChanged: function (event) {
+            clearTimeout(this._debounce);
+            this._debounce = setTimeout(this.updateWatermarkPosition.bind(this), 200);
+            this.canvas.requestRenderAll();
         }
     };
 

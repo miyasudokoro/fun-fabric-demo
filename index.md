@@ -13,3 +13,4 @@ Connect.Tech 2017
 7. Image filters: filterManager
 8. Canvas image data: Download
 9. Patterns and static canvas: Preview
+10. Overlay image and internal canvases: FWatermark

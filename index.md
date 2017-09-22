@@ -12,3 +12,4 @@ Connect.Tech 2017
 6. Handling images: FImage
 7. Image filters: filterManager
 8. Canvas image data: Download
+9. Patterns and static canvas: Preview

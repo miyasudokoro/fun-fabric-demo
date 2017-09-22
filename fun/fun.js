@@ -41,6 +41,9 @@
 
             //Creates handler for image file chooser
             this._prepareFileReader();
+
+            //Make the static preview canvas
+            this._initializePreview();
         },
 
         /** Sets up this.canvas and starts listeners.
@@ -61,6 +64,7 @@
             view.addLink(GET.ACTIONS, 'Download', this.setDownloadURL.bind(this), {
                 'download': 'Download'
             });
+            view.addButton(GET.ACTIONS, 'Preview', this.updatePreviewImage.bind(this), 1);
             view.addInlineInput(GET.ACTIONS, 'range', 'Zoom', 'zoom', 1,
                 this.zoom.bind(this), {
                     min: 0.1, max: 4, step: 0.1
@@ -573,14 +577,15 @@
          */
         setDownloadURL: function (event) {
             //Put the image data into the link so it will be downloaded
-            event.target.href = this._getImageData(true);
+            event.target.href = this._getImageData();
         },
 
         /** Return the canvas image data.
+         * @param asData {boolean} true if we want the raw data array
          * @returns {string}
          * @private
          */
-        _getImageData: function () {
+        _getImageData: function (asData) {
             var data;
 
             //Hide selection border and controls so we will get only the desired content
@@ -592,10 +597,16 @@
 
             //Get the size of detected edges
             var edges = this._detectEdges();
-
-            //Get data URL, which is a PNG snapshot of the canvas
-            edges.format = 'png';
-            data = this.canvas.toDataURL(edges);
+            
+            if (asData) {
+                //Get context data, which we can write directly to another canvas
+                var context = this.canvas.getContext();
+                data = context.getImageData(edges.left, edges.top, edges.width, edges.height);
+            } else {
+                //Get data URL, which is a PNG snapshot of the canvas
+                edges.format = 'png';
+                data = this.canvas.toDataURL(edges);
+            }
 
             //Restore the appearance of the selection
             this._toggleControls(true);
@@ -662,6 +673,104 @@
                 width: maxX - minX || 1,
                 height: maxY - minY || 1
             };
+        },
+        
+        
+        /***** preview ********************************************************/
+        
+        /** Sets up this.preview.
+         * @private
+         */
+        _initializePreview: function () {
+            //Create a fabric.StaticCanvas instance using the ID from the view
+            var canvasID = view.getPreviewID();
+            this.preview = new fabric.StaticCanvas(canvasID);
+            //Make checkerboard pattern to indicate transparency
+            var pattern = this._makeCheckerboardPatternInstance();
+            //Assign the pattern to the preview canvas background
+            this.preview.setBackgroundColor(pattern,
+                this.preview.renderAll.bind(this.preview));
+        },
+
+        /** Returns a checkerboard pattern.
+         * @returns {fabric.Pattern}
+         * @private
+         */
+        _makeCheckerboardPatternInstance: function () {
+            //Make a repeatable checkerboard pattern canvas
+            var patternSource = new fabric.StaticCanvas('', {width: 20, height: 20}),
+                square = {
+                    width: 10,
+                    height: 10,
+                    left: 0,
+                    top: 0,
+                    fill: '#888',
+                    strokeWidth: 0,
+                    opacity: 0.8
+                };
+            patternSource.add(new fabric.Rect(square));
+            square.left = 10;
+            square.top = 10;
+            patternSource.add(new fabric.Rect(square));
+            square.fill = '#CCC';
+            square.top = 0;
+            patternSource.add(new fabric.Rect(square));
+            square.top = 10;
+            square.left = 0;
+            patternSource.add(new fabric.Rect(square));
+
+            //Make a fabric pattern instance
+            var pattern = new fabric.Pattern({
+                source: function () {
+                    return this.sourceCanvas.getElement();
+                },
+                repeat: 'repeat'
+            });
+            pattern.sourceCanvas = patternSource;
+
+            return pattern;
+        },
+
+        /** Updates the image shown in the preview.
+         */
+        updatePreviewImage: function () {
+            //Get the image data
+            var data = this._getImageData(true);
+            //Get the image object
+            var image = this._getPreviewImage();
+            //Get the internal element from the image
+            var element = image.getElement();
+
+            //Set the correct size from data.width and data.height
+            element.width = data.width;
+            element.height = data.height;
+            image.width = data.width;
+            image.height = data.height;
+            this.preview.setDimensions({width: data.width, height: data.height});
+
+            //Put the image data in the context of the element
+            var context = element.getContext('2d');
+            context.putImageData(data, 0, 0);
+
+            //Render the preview
+            this.preview.renderAll();
+        },
+
+        /** Gets the fabric image object with a canvas as its element.
+         * @returns {fabric.Image}
+         */
+        _getPreviewImage: function () {
+            //Get image object already in preview as first item
+            var image = this.preview.item(0);
+            if (!image) {
+                image = new fabric.Image();
+                //Create a canvas element for the fabric image
+                var element = document.createElement('canvas');
+                image.setElement(element);
+                //Put the image in the preview
+                this.preview.add(image);
+            }
+            return image;
         }
     };
 

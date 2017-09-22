@@ -11,3 +11,4 @@ Connect.Tech 2017
 5. Extending an object class: FText
 6. Handling images: FImage
 7. Image filters: filterManager
+8. Canvas image data: Download

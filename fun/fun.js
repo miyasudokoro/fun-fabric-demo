@@ -58,6 +58,9 @@
         _putInputsInView: function () {
             var GET = view.GET;
 
+            view.addLink(GET.ACTIONS, 'Download', this.setDownloadURL.bind(this), {
+                'download': 'Download'
+            });
             view.addInlineInput(GET.ACTIONS, 'range', 'Zoom', 'zoom', 1,
                 this.zoom.bind(this), {
                     min: 0.1, max: 4, step: 0.1
@@ -559,6 +562,106 @@
          */
         isFilterOn: function (type) {
             return this.call('isFilterOn', [type]);
+        },
+        
+        
+        /***** download *******************************************************/
+        
+        /** Downloads the image of the canvas.
+         * @param event {Event} the click event
+         * @private
+         */
+        setDownloadURL: function (event) {
+            //Put the image data into the link so it will be downloaded
+            event.target.href = this._getImageData(true);
+        },
+
+        /** Return the canvas image data.
+         * @returns {string}
+         * @private
+         */
+        _getImageData: function () {
+            var data;
+
+            //Hide selection border and controls so we will get only the desired content
+            this._toggleControls(false);
+            //Get the current zoom
+            var zoom = this.canvas.getZoom();
+            //Set to actual size and re-render
+            this._setZoom(1);
+
+            //Get the size of detected edges
+            var edges = this._detectEdges();
+
+            //Get data URL, which is a PNG snapshot of the canvas
+            edges.format = 'png';
+            data = this.canvas.toDataURL(edges);
+
+            //Restore the appearance of the selection
+            this._toggleControls(true);
+            //Restore the zoom and re-render
+            this._setZoom(zoom);
+
+            return data;
+        },
+
+        /** Toggles the controls and border of active object(s) on or off.
+         *
+         * @param bool {boolean} true for on, false for off
+         * @private
+         */
+        _toggleControls: function (bool) {
+            var active = this.getActive();
+            if (active) {
+                //Show / hide the square handles used for resize and rotate
+                active.hasControls = bool;
+                //Show / hide the selection border
+                active.hasBorders = bool;
+            }
+        },
+
+        /** Simple edge detection based on transparency.
+         */
+        _detectEdges: function () {
+            var context = this.canvas.getContext(),
+                imageData = context.getImageData(0, 0, this.canvas.width, this.canvas.height),
+                //get the RGBA values of each pixel, starting at top left and going row after row: [r,g,b,a,r,g,b,a...]
+                data = imageData.data,
+                //this is the width of the image
+                width = imageData.width,
+                //this is the height of the image
+                height = imageData.height,
+                minX,
+                maxX,
+                minY,
+                maxY;
+
+            //Loop through the data array
+            for (var x = 0; x < width; x++) {
+                for (var y = 0; y < height; y++) {
+                    //the index of the current pixel
+                    var index = (y * width + x) * 4,
+                        //the alpha value of the current pixel
+                        alpha = data[index + 3];
+
+                    //If not fully transparent, it is content
+                    if (alpha > 1) {
+                        //find the boundaries of the non-transparent pixels
+                        if (typeof minX === 'undefined' || x < minX) minX = x;
+                        if (typeof minY === 'undefined' || y < minY) minY = y;
+                        if (typeof maxX === 'undefined' || x > maxX) maxX = x;
+                        if (typeof maxY === 'undefined' || y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            //Return the detected content area
+            return {
+                left: minX || 0,
+                top: minY || 0,
+                width: maxX - minX || 1,
+                height: maxY - minY || 1
+            };
         }
     };
 

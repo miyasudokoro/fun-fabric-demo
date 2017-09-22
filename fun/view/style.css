@@ -1,0 +1,80 @@
+body {
+  background-color: #444;
+  color: white;
+}
+
+h1, h2 {
+  text-align:center;
+}
+
+.row {
+  margin-bottom:4px;
+}
+
+input[type="color"], input[type="file"] {
+  padding: 0px 0.1rem;
+  margin: 0.5rem 0px;
+}
+
+input[type="checkbox"] {
+  display: inline-block;
+  vertical-align:bottom;
+  width:auto;
+}
+
+input[type="text"], input[type="number"], select {
+  padding: .2rem .2rem !important;
+  margin: .3rem 0px;
+  height: auto !important;
+}
+
+#funCanvas {
+  border:1px solid #EEE;
+}
+
+#funCanvasContainer {
+  padding:10px 10px 0px 0px;
+}
+
+#preview {
+  margin: 0 auto;
+  display:block;
+}
+
+a, a:not([href]):not([tabindex]), a:not([href]):not([tabindex]):focus, a:not([href]):not([tabindex]):hover {
+  color: black;
+  background-color:#DDD;
+  width: 100%;
+  display: block;
+}
+
+.control-label {
+  text-align: right;
+  line-height:35px;
+  white-space: nowrap;
+  padding-right:0;
+}
+
+.form-group {
+  margin-bottom: 0px;
+}
+
+.col-md-1, .col-sm-1, .col-md-1 .btn, .col-sm-1 .btn {
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.col-md-2, .col-sm-2, .col-md-2 .btn, .col-sm-2 .btn,
+.col-md-3, .col-sm-3, .col-md-3 .btn, .col-sm-3 .btn {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.radioList > .form-control, .radioList > span {
+  display:inline-block;
+  width:auto;
+  margin:4px;
+}
+.radioList > .form-control {
+  margin-right:20px;
+}

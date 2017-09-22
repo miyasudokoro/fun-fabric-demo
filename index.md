@@ -10,3 +10,4 @@ Connect.Tech 2017
 4. Free drawing
 5. Extending an object class: FText
 6. Handling images: FImage
+7. Image filters: filterManager

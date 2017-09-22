@@ -1,6 +1,7 @@
 (function (global) {
     var fabric = global.fabric,
-        view = global.view;
+        view = global.view,
+        filterManager = global.filterManager;
 
     /** @const FULL_SIZE {object} the size of the canvas */
     var FULL_SIZE = {width: 1600, height: 1200};
@@ -122,6 +123,30 @@
                 this.set.bind(this, 'fontSize'), {
                     min: 4, max: 400, step: 0.5
                 });
+            view.addText(GET.CONTROLS, 'Image filters:');
+
+            for (var type in filterManager.filters) {
+                view.addRowInput(GET.CONTROLS, 'checkbox', type, type, type,
+                    this.setFilter.bind(this, type), {
+                        'data-get': 'isFilterOn'
+                    }
+                );
+                var controls = filterManager.controls[type];
+                if (controls) {
+                    for (var property in controls) {
+                        var settings = controls[property],
+                            attrs = settings.attrs || {},
+                            label = settings.label || type + ' ' + property;
+
+                        attrs['data-get'] = 'getFilterProperty';
+                        view.addRowInput(GET.CONTROLS, settings.type, label,
+                            type + '_' + property,
+                            filterManager.filters[type][property],
+                            this.setFilterProperty.bind(this, type, property),
+                            attrs);
+                    }
+                }
+            }
         },
 
         /** Sets event listeners for canvas events.
@@ -132,6 +157,8 @@
             this.canvas.on('selection:created', view.updateInputs.bind(view, this));
             //Updates the inputs after selecting object(s)
             this.canvas.on('object:selected', view.updateInputs.bind(view, this));
+            //Renders the canvas after a change
+            this.canvas.on('object:changed', this.canvas.renderAll.bind(this.canvas));
         },
 
         /** Sets event listeners on the document.
@@ -279,6 +306,10 @@
         createObject: function (type, options) {
             //Get the values out of the inputs to set on the new object
             options = view.collectInputValues(options);
+            //Collect image filters from the values if filters can be set
+            if (fabric[type].prototype.setFilter) {
+                options.filters = filterManager.collectInputValues(options);
+            }
             //Set the maximum size (used for automatically resizing images)
             options.maxSize = FULL_SIZE;
             //Create the new object
@@ -346,6 +377,29 @@
                     }
                 }
             }
+        },
+
+        /** Calls the function with the given arguments on the selected objects.
+         * @param fnName {string} the function to call
+         * @param args {Array} arguments to apply
+         * @returns {*} result of function, if any (first result if activeSelection)
+         */
+        call: function (fnName, args) {
+            var fobs = this.getActiveObjects(),
+                response;
+            if (fobs && fobs.length > 0) {
+                for (var i = fobs.length ; i--; ) {
+                    var fob = fobs[i];
+                    if (typeof fob[fnName] === 'function') {
+                        var r = fob[fnName].apply(fob, args);
+                        if (typeof response === 'undefined' || response === null) {
+                            //in a activeSelection, respond with the first object's response
+                            response = r;
+                        }
+                    }
+                }
+            }
+            return response;
         },
 
 
@@ -450,6 +504,61 @@
                     }.bind(this));
                 }
             }
+        },
+
+
+        /***** image filters **************************************************/
+
+        /** Toggles the filter on or off for the current selected images(s) and for
+         * when creating new images.
+         *
+         * @param type {string} type of filter
+         * @param bool {boolean} true to turn on, false to turn off
+         */
+        setFilter: function (type, bool) {
+            bool = view.getEventValue(bool);
+            this.call('setFilter', [type, bool]);
+        },
+
+        /** Sets the value of the property on the filter of the given type, for both
+         * the current selected image(s) and the settings when creating new image
+         * filters.
+         *
+         * @param type {string} type of filter
+         * @param property {string} property to set
+         * @param value {*} value to set for property
+         */
+        setFilterProperty: function (type, property, value) {
+            value = view.getEventValue(value);
+            if (typeof value !== 'undefined') {
+                //Set it in the filter settings
+                filterManager.setFilterProperty(type, property, value);
+                //Set it in active image objects
+                this.call('setFilterProperty', [type, property, value]);
+            }
+        },
+
+        /** Returns the value of the property represented in the given id.
+         * @param id {string} id in view, with format type_property
+         * @returns {*} value of property
+         */
+        getFilterProperty: function (id) {
+            var sp = id.split('_'),
+                type = sp[0],
+                property = sp[1];
+
+            var value = this.call('getFilterProperty', [type, property]);
+            return typeof value === 'undefined'
+                ? filterManager.filters[type][property]
+                : value;
+        },
+
+        /** Returns true if the given filter is on for a selected image.
+         * @param type {string} the type of filter
+         * @returns {boolean}
+         */
+        isFilterOn: function (type) {
+            return this.call('isFilterOn', [type]);
         }
     };
 

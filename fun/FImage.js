@@ -1,5 +1,6 @@
 (function (global) {
-    var fabric = global.fabric || (global.fabric = {});
+    var fabric = global.fabric || (global.fabric = {}),
+        filterManager = global.filterManager;
 
     if (fabric.FImage) {
         fabric.warn('fabric.FImage is already defined.');
@@ -83,6 +84,99 @@
                     this.set('scaleY',scale);
                     this.set('scaleX',scale);
                 }
+            },
+            
+            
+            /***** filters ****************************************************/
+
+            /** Sets or updates a filter on this image.
+             * @param type {string} type of image filter
+             * @param on {boolean} true to turn it on, false to turn it off
+             */
+            setFilter: function (type, on) {
+                var filter,
+                    changed = false,
+                    index = this.findFilterIndex(type);
+
+                if (index > -1) {
+                    //set current filter
+                    filter = this.filters[index];
+                    //remove it (even if filter is on, because order of filters matters)
+                    this.filters.splice(index, 1);
+                    //If turning off the filter, a change has occurred
+                    changed = !on;
+                }
+
+                if (on) {
+                    if (!filter) {
+                        //Make a new filter of this type
+                        filter = filterManager.createFilter(type);
+                    }
+                    var newIndex = this.filters.length;
+                    //Put it at the end of the list of filters
+                    this.filters.push(filter);
+                    //If the filter has moved or is new, a change has occurred
+                    changed = newIndex !== index;
+                }
+
+                //Apply and notify if a change occurred
+                changed && this._applyFiltersAndNotify();
+            },
+
+            /** Sets the property on the filter.
+             * @param type {string} type of the filter
+             * @param property {string} property to set
+             * @param value {*} value to set
+             */
+            setFilterProperty: function (type, property, value) {
+                var filter = this.filters[this.findFilterIndex(type)];
+                if (filter && filter[property] !== value) {
+                    filter[property] = value;
+                    this._applyFiltersAndNotify();
+                }
+            },
+
+            /** Returns the value of the property of the applied filter.
+             * @param type {string} type of the filter
+             * @param property {string} property to get
+             * @returns {*|undefined} value of the property, if any
+             */
+            getFilterProperty: function (type, property) {
+                var filter = this.filters[this.findFilterIndex(type)];
+                return filter && filter[property];
+            },
+
+            /** Returns true if the filter is active on this image.
+             * @param type {string} the type of the filter
+             * @returns {boolean}
+             */
+            isFilterOn: function (type) {
+                return this.findFilterIndex(type) > -1;
+            },
+
+            /** Finds index of a filter of the given type.
+             * @param type {string} type of the filter
+             * @returns {number} index of filter
+             */
+            findFilterIndex: function (type) {
+                for (var i = this.filters.length; i--; ) {
+                    if (this.filters[i].type === type) {
+                        return i;
+                    }
+                }
+                return -1;
+            },
+
+            /** Applies the filters to this image and notifies app they have changed.
+             */
+            _applyFiltersAndNotify: function () {
+                //Apply the filters on this image
+                this.applyFilters();
+                //Fire change event
+                this.fire('changed');
+                this.canvas && this.canvas.fire('object:changed',
+                    {target: this, key: 'filters'}
+                );
             }
         });
 

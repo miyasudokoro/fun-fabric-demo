@@ -34,6 +34,12 @@
             
             //Set up event listeners for canvas events
             this._setCanvasEventListeners();
+
+            //Set event listeners on the document
+            this._setDocumentEventListeners();
+
+            //Creates handler for image file chooser
+            this._prepareFileReader();
         },
 
         /** Sets up this.canvas and starts listeners.
@@ -73,6 +79,8 @@
             }.bind(this));
             
             //Add objects row
+            view.addInlineInput(GET.TOOLS, 'file', 'Image', 'image', '',
+                this.readImage.bind(this), {}, 3);
             view.addButton(GET.TOOLS, 'Rect', this.createObject.bind(this, 'Rect', {
                 width: 300,
                 height: 300
@@ -124,6 +132,20 @@
             this.canvas.on('selection:created', view.updateInputs.bind(view, this));
             //Updates the inputs after selecting object(s)
             this.canvas.on('object:selected', view.updateInputs.bind(view, this));
+        },
+
+        /** Sets event listeners on the document.
+         * @private
+         */
+        _setDocumentEventListeners: function () {
+            //Prevent drag-drop from loading file
+            document.addEventListener('dragover', function (event) {
+                event.preventDefault();
+            });
+            //Add image or text object on paste or drag-drop
+            var handleDataTransfer = this.handleDataTransfer.bind(this);
+            document.addEventListener('paste', handleDataTransfer);
+            document.addEventListener('drop', handleDataTransfer);
         },
         
         
@@ -257,10 +279,21 @@
         createObject: function (type, options) {
             //Get the values out of the inputs to set on the new object
             options = view.collectInputValues(options);
+            //Set the maximum size (used for automatically resizing images)
+            options.maxSize = FULL_SIZE;
             //Create the new object
             var fob = new fabric[type](options);
-            //Load the object on the canvas
-            this.addObjectToCanvas(fob);
+            
+            if (fabric[type].async) {
+                //Listen for our custom events "load" and "error"
+                fob.on('load', this.addObjectToCanvas.bind(this, fob));
+                fob.on('error', function () {
+                    alert('Failed to load image')
+                });
+            } else {
+                //Load the object on the canvas immediately
+                this.addObjectToCanvas(fob);
+            }
         },
 
         /** Adds an object to the canvas.
@@ -363,6 +396,59 @@
 
                 this.canvas.freeDrawingBrush = this.brushes[brush];
                 this.canvas.isDrawingMode = true;
+            }
+        },
+
+
+        /***** image **********************************************************/
+
+        /** Prepares the file reader for image file chooser.
+         * @private
+         */
+        _prepareFileReader: function () {
+            this.reader = new FileReader();
+            this.reader.addEventListener("loadend", function (event) {
+                this.createObject('FImage', {src: event.target.result});
+            }.bind(this));
+        },
+
+        /** Reads the image info out of the file chooser event.
+         * @param event {Event}
+         */
+        readImage: function (event) {
+            this.reader.readAsDataURL(event.target.files[0]);
+        },
+
+        /** Handles paste and drag-drop by creating new objects.
+         * @param event {Event}
+         */
+        handleDataTransfer: function (event) {
+            event = event.originalEvent || event;
+            event.preventDefault();
+            var data = event.clipboardData || event.dataTransfer;
+            if (data) {
+                var items = data.items,
+                    foundImage,
+                    foundText;
+                if (items && items.length > 0) {
+                    for (var i = 0; i < items.length; i++) {
+                        if (items[i].kind === 'file' && items[i].type.indexOf("image") > -1) {
+                            foundImage = items[i];
+                        } else if (items[i].kind === 'string') {
+                            foundText = items[i];
+                        }
+                    }
+                }
+                if (foundImage) {
+                    var blob = foundImage.getAsFile();
+                    var URLObj = window.URL || window.webkitURL;
+                    var source = URLObj.createObjectURL(blob);
+                    this.createObject('FImage', {src: source});
+                } else if (foundText) {
+                    foundText.getAsString(function (text) {
+                        text && this.createObject('FText', {text: text});
+                    }.bind(this));
+                }
             }
         }
     };
